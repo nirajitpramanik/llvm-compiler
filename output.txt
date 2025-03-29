@@ -1,10 +1,8 @@
-D:\VIT\Winter Semester - Year 3\Compiler Design\Compil-a-thon\gpt-1\build\Release>pim_compiler.exe
-Mapping memory for matrix multiplication...
-Mapping memory for matrix multiplication...
+Generated LLVM IR:
 ; ModuleID = 'PIM_Compiler'
 source_filename = "PIM_Compiler"
 
-define void @matmul(ptr %0, ptr %1, ptr %2, i32 %3) {
+define void @matmul(ptr %A, ptr %B, ptr %C, i32 %N) {
 entry:
   %i = alloca i32, align 4
   %j = alloca i32, align 4
@@ -14,7 +12,7 @@ entry:
 
 loop_i_cond:                                      ; preds = %loop_i_inc, %entry
   %i_val = load i32, ptr %i, align 4
-  %cond_i = icmp slt i32 %i_val, %3
+  %cond_i = icmp slt i32 %i_val, %N
   br i1 %cond_i, label %loop_i_body, label %exit
 
 loop_i_body:                                      ; preds = %loop_i_cond
@@ -23,35 +21,39 @@ loop_i_body:                                      ; preds = %loop_i_cond
 
 loop_j_cond:                                      ; preds = %loop_j_inc, %loop_i_body
   %j_val = load i32, ptr %j, align 4
-  %cond_j = icmp slt i32 %j_val, %3
+  %cond_j = icmp slt i32 %j_val, %N
   br i1 %cond_j, label %loop_j_body, label %loop_i_inc
 
 loop_j_body:                                      ; preds = %loop_j_cond
   store i32 0, ptr %k, align 4
+  %0 = getelementptr ptr, ptr %C, i32 %i_val
+  %C_i = load ptr, ptr %0, align 8
+  %1 = getelementptr i32, ptr %C_i, i32 %j_val
+  store i32 0, ptr %1, align 4
   br label %loop_k_cond
 
 loop_k_cond:                                      ; preds = %loop_k_body, %loop_j_body
   %k_val = load i32, ptr %k, align 4
-  %cond_k = icmp slt i32 %k_val, %3
+  %cond_k = icmp slt i32 %k_val, %N
   br i1 %cond_k, label %loop_k_body, label %loop_j_inc
 
 loop_k_body:                                      ; preds = %loop_k_cond
-  %4 = getelementptr ptr, ptr %0, i32 %i_val
-  %A_i = load ptr, ptr %4, align 8
-  %5 = getelementptr i32, ptr %A_i, i32 %k_val
-  %A_ik = load i32, ptr %5, align 4
-  %6 = getelementptr ptr, ptr %1, i32 %k_val
-  %B_k = load ptr, ptr %6, align 8
-  %7 = getelementptr i32, ptr %B_k, i32 %j_val
-  %B_kj = load i32, ptr %7, align 4
-  %8 = getelementptr ptr, ptr %2, i32 %i_val
-  %C_i = load ptr, ptr %8, align 8
-  %9 = getelementptr i32, ptr %C_i, i32 %j_val
-  %C_ij = load i32, ptr %9, align 4
+  %2 = getelementptr ptr, ptr %A, i32 %i_val
+  %A_i = load ptr, ptr %2, align 8
+  %3 = getelementptr i32, ptr %A_i, i32 %k_val
+  %A_ik = load i32, ptr %3, align 4
+  %4 = getelementptr ptr, ptr %B, i32 %k_val
+  %B_k = load ptr, ptr %4, align 8
+  %5 = getelementptr i32, ptr %B_k, i32 %j_val
+  %B_kj = load i32, ptr %5, align 4
+  %6 = getelementptr ptr, ptr %C, i32 %i_val
+  %C_i1 = load ptr, ptr %6, align 8
+  %7 = getelementptr i32, ptr %C_i1, i32 %j_val
+  %C_ij = load i32, ptr %7, align 4
   %mul_res = mul i32 %A_ik, %B_kj
   %new_c = add i32 %C_ij, %mul_res
-  %10 = getelementptr i32, ptr %C_i, i32 %j_val
-  store i32 %new_c, ptr %10, align 4
+  %8 = getelementptr i32, ptr %C_i1, i32 %j_val
+  store i32 %new_c, ptr %8, align 4
   %next_k = add i32 %k_val, 1
   store i32 %next_k, ptr %k, align 4
   br label %loop_k_cond
@@ -69,3 +71,58 @@ loop_i_inc:                                       ; preds = %loop_j_cond
 exit:                                             ; preds = %loop_i_cond
   ret void
 }
+
+Generated ISA Code:
+; Matrix multiplication ISA code
+INIT C            ; Initialize result matrix to zeros
+
+LOAD R3, N    ; Load matrix dimension
+LOAD R0, 0    ; Initialize i = 0
+LOOP_I:              ; Start of i loop
+  CMP R0, R3
+  JGE EXIT_I         ; Exit if i >= N
+
+  LOAD R1, 0  ; Initialize j = 0
+  LOOP_J:            ; Start of j loop
+    CMP R1, R3
+    JGE EXIT_J       ; Exit if j >= N
+
+    LOAD R10, 0      ; Initialize C[i][j] = 0
+    LOAD R2, 0  ; Initialize k = 0
+    LOOP_K:          ; Start of k loop
+      CMP R2, R3
+      JGE EXIT_K     ; Exit if k >= N
+
+      ; Load A[i][k]
+      MUL R8, R0, R3  ; R8 = i * N
+      ADD R8, R8, R2     ; R8 = i*N + k (offset for A[i][k])
+      LOAD R11, A[R8]      ; R11 = A[i][k]
+
+      ; Load B[k][j]
+      MUL R9, R2, R3  ; R9 = k * N
+      ADD R9, R9, R1     ; R9 = k*N + j (offset for B[k][j])
+      LOAD R12, B[R9]      ; R12 = B[k][j]
+
+      ; Compute A[i][k] * B[k][j] and add to accumulator
+      MUL R13, R11, R12    ; R13 = A[i][k] * B[k][j]
+      ADD R10, R10, R13    ; Accumulate in R10 (for C[i][j])
+
+      ; Increment k
+      ADD R2, R2, 1
+      JMP LOOP_K
+    EXIT_K:           ; End of k loop
+
+    ; Store accumulated value to C[i][j]
+    MUL R14, R0, R3  ; R14 = i * N
+    ADD R14, R14, R1     ; R14 = i*N + j (offset for C[i][j])
+    STORE C[R14], R10      ; C[i][j] = accumulated value
+
+    ; Increment j
+    ADD R1, R1, 1
+    JMP LOOP_J
+  EXIT_J:             ; End of j loop
+
+  ; Increment i
+  ADD R0, R0, 1
+  JMP LOOP_I
+EXIT_I:               ; End of i loop
