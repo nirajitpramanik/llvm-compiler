@@ -2,7 +2,7 @@
 
 This is a simple LLVM-based compiler for matrix multiplication using ISA encoding.
 
-## 🛠️ Setup Instructions
+## Setup Instructions
 
 ### **1. Clone the Repository**
 ```sh
@@ -60,11 +60,3 @@ After successful compilation, run:
   ./build/pim_compiler
   ```
 ---
-
-## 📝 Notes
-- Ensure that `LLVM_DIR` is properly set if you face CMake errors.
-- Modify `pim_llvm_compiler.cpp` to test different inputs.
-- Report issues via GitHub if any problem occurs.
-
-Happy Coding! 🚀
-
