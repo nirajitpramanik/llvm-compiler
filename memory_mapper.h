@@ -1,7 +1,7 @@
-/* memory_mapper.h - Header file for memory mapping */
 #ifndef MEMORY_MAPPER_H
 #define MEMORY_MAPPER_H
 
+// Function to map memory for matrices
 void mapMemory();
 
-#endif
+#endif // MEMORY_MAPPER_H

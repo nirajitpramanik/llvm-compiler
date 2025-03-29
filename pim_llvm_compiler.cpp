@@ -26,16 +26,20 @@ int main() {
     FunctionType *funcType = FunctionType::get(Type::getVoidTy(Context), Params, false);
     Function *matmulFunc = Function::Create(funcType, Function::ExternalLinkage, "matmul", ModuleOb.get());
 
-    // Entry block
-    BasicBlock *entry = BasicBlock::Create(Context, "entry", matmulFunc);
-    Builder.SetInsertPoint(entry);
-
-    // Function arguments
+    // Name function arguments
     auto args = matmulFunc->args().begin();
     Value *A = args++;
     Value *B = args++;
     Value *C = args++;
     Value *N = args;
+    A->setName("A");
+    B->setName("B");
+    C->setName("C");
+    N->setName("N");
+
+    // Entry block
+    BasicBlock *entry = BasicBlock::Create(Context, "entry", matmulFunc);
+    Builder.SetInsertPoint(entry);
 
     // Allocate loop variables
     Value *i = Builder.CreateAlloca(Type::getInt32Ty(Context), nullptr, "i");
@@ -81,6 +85,13 @@ int main() {
     Builder.SetInsertPoint(loop_j_body);
     // Initialize k = 0
     Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(Context), 0), k);
+    
+    // Initialize C[i][j] = 0 only if this is the first iteration of k loop
+    Value *C_i = Builder.CreateLoad(PointerType::get(Type::getInt32Ty(Context), 0), 
+                                  Builder.CreateGEP(PointerType::get(Type::getInt32Ty(Context), 0), C, {i_val}), "C_i");
+    Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(Context), 0), 
+                       Builder.CreateGEP(Type::getInt32Ty(Context), C_i, {j_val}));
+    
     Builder.CreateBr(loop_k_cond);
 
     // k loop condition
@@ -104,8 +115,8 @@ int main() {
                                    Builder.CreateGEP(Type::getInt32Ty(Context), B_k, {j_val}), "B_kj");
     
     // Load C[i][j]
-    Value *C_i = Builder.CreateLoad(PointerType::get(Type::getInt32Ty(Context), 0), 
-                                  Builder.CreateGEP(PointerType::get(Type::getInt32Ty(Context), 0), C, {i_val}), "C_i");
+    C_i = Builder.CreateLoad(PointerType::get(Type::getInt32Ty(Context), 0), 
+                           Builder.CreateGEP(PointerType::get(Type::getInt32Ty(Context), 0), C, {i_val}), "C_i");
     Value *C_ij = Builder.CreateLoad(Type::getInt32Ty(Context), 
                                    Builder.CreateGEP(Type::getInt32Ty(Context), C_i, {j_val}), "C_ij");
     
@@ -143,10 +154,14 @@ int main() {
         return 1;
     }
 
-    // Memory Mapping
-    std::cout << "Mapping memory for matrix multiplication..." << std::endl;
-    mapMemory();
-
+    // Print the LLVM IR
+    std::cout << "Generated LLVM IR:\n";
     ModuleOb->print(outs(), nullptr);
+    std::cout << "\n";
+
+    // Generate the ISA code
+    std::string isa_code = encodeISA(*matmulFunc);
+    std::cout << "Generated ISA Code:\n" << isa_code << std::endl;
+
     return 0;
 }
