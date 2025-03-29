@@ -23,8 +23,8 @@ if (MSVC)
     add_compile_options(/std:c++17 /EHsc)
 endif()
 
-set(CMAKE_CXX_FLAGS_RELEASE "/MT")
-set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
+set(CMAKE_CXX_FLAGS_RELEASE "/MT")  # Match LLVM's release build
+set(CMAKE_CXX_FLAGS_DEBUG "/MTd")   # Match LLVM's debug build
 
 # Create the executable
 add_executable(pim_compiler

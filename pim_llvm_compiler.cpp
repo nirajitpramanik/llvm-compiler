@@ -36,9 +36,10 @@ int main() {
     Value *B = Builder.CreateAlloca(Type::getInt32Ty(Context), nullptr, "B");
     Value *C = Builder.CreateAlloca(Type::getInt32Ty(Context), nullptr, "C");
 
-    // Encode the operations into ISA
-    std::string isa_code = encodeMatrixMultiplication();
-    std::cout << "Generated ISA:\n" << isa_code << std::endl;
+    int M = 2, N = 3, P = 2;  // Example matrix sizes (Change as needed)
+
+    std::string isaCode = encodeMatrixMultiplication(M, N, P);
+    std::cout << "Generated ISA:\n" << isaCode << std::endl;
 
     // Memory mapping
     mapMemory();
