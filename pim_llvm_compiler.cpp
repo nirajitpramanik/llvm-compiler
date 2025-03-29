@@ -1,9 +1,3 @@
-/*
-    Compiler for Custom Processor-in-Memory (PIM) Architecture
-    - Translates C++ Matrix Multiplication Code to Custom ISA
-    - Uses LLVM for Parsing and Intermediate Representation
-*/
-
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
@@ -22,35 +16,136 @@ int main() {
     auto ModuleOb = std::make_unique<Module>("PIM_Compiler", Context);
     IRBuilder<> Builder(Context);
 
-    // Define function signature: void matmul(int**, int**, int**, int)
-    std::vector<Type *> IntPtr(1, PointerType::getInt32Ty(Context));
-    FunctionType *funcType = FunctionType::get(Type::getVoidTy(Context), IntPtr, false);
+    // Function Signature: void matmul(int** A, int** B, int** C, int N)
+    std::vector<Type *> Params = {
+        PointerType::get(PointerType::get(Type::getInt32Ty(Context), 0), 0), // A
+        PointerType::get(PointerType::get(Type::getInt32Ty(Context), 0), 0), // B
+        PointerType::get(PointerType::get(Type::getInt32Ty(Context), 0), 0), // C
+        Type::getInt32Ty(Context) // N
+    };
+    FunctionType *funcType = FunctionType::get(Type::getVoidTy(Context), Params, false);
     Function *matmulFunc = Function::Create(funcType, Function::ExternalLinkage, "matmul", ModuleOb.get());
 
-    // Define the entry basic block
+    // Entry block
     BasicBlock *entry = BasicBlock::Create(Context, "entry", matmulFunc);
     Builder.SetInsertPoint(entry);
 
-    // Sample instruction generation (To be replaced with ISA specific instructions)
-    Value *A = Builder.CreateAlloca(Type::getInt32Ty(Context), nullptr, "A");
-    Value *B = Builder.CreateAlloca(Type::getInt32Ty(Context), nullptr, "B");
-    Value *C = Builder.CreateAlloca(Type::getInt32Ty(Context), nullptr, "C");
+    // Function arguments
+    auto args = matmulFunc->args().begin();
+    Value *A = args++;
+    Value *B = args++;
+    Value *C = args++;
+    Value *N = args;
 
-    int M = 2, N = 3, P = 2;  // Example matrix sizes (Change as needed)
+    // Allocate loop variables
+    Value *i = Builder.CreateAlloca(Type::getInt32Ty(Context), nullptr, "i");
+    Value *j = Builder.CreateAlloca(Type::getInt32Ty(Context), nullptr, "j");
+    Value *k = Builder.CreateAlloca(Type::getInt32Ty(Context), nullptr, "k");
 
-    std::string isaCode = encodeMatrixMultiplication(M, N, P);
-    std::cout << "Generated ISA:\n" << isaCode << std::endl;
+    // Initialize i = 0
+    Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(Context), 0), i);
 
-    // Memory mapping
-    mapMemory();
+    // Create all basic blocks first
+    BasicBlock *loop_i_cond = BasicBlock::Create(Context, "loop_i_cond", matmulFunc);
+    BasicBlock *loop_i_body = BasicBlock::Create(Context, "loop_i_body", matmulFunc);
+    BasicBlock *loop_j_cond = BasicBlock::Create(Context, "loop_j_cond", matmulFunc);
+    BasicBlock *loop_j_body = BasicBlock::Create(Context, "loop_j_body", matmulFunc);
+    BasicBlock *loop_k_cond = BasicBlock::Create(Context, "loop_k_cond", matmulFunc);
+    BasicBlock *loop_k_body = BasicBlock::Create(Context, "loop_k_body", matmulFunc);
+    BasicBlock *loop_j_inc = BasicBlock::Create(Context, "loop_j_inc", matmulFunc);
+    BasicBlock *loop_i_inc = BasicBlock::Create(Context, "loop_i_inc", matmulFunc);
+    BasicBlock *exitBlock = BasicBlock::Create(Context, "exit", matmulFunc);
 
+    // Entry to first loop condition
+    Builder.CreateBr(loop_i_cond);
+
+    // i loop condition
+    Builder.SetInsertPoint(loop_i_cond);
+    Value *i_val = Builder.CreateLoad(Type::getInt32Ty(Context), i, "i_val");
+    Value *cond_i = Builder.CreateICmpSLT(i_val, N, "cond_i");
+    Builder.CreateCondBr(cond_i, loop_i_body, exitBlock);
+
+    // i loop body
+    Builder.SetInsertPoint(loop_i_body);
+    // Initialize j = 0
+    Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(Context), 0), j);
+    Builder.CreateBr(loop_j_cond);
+
+    // j loop condition
+    Builder.SetInsertPoint(loop_j_cond);
+    Value *j_val = Builder.CreateLoad(Type::getInt32Ty(Context), j, "j_val");
+    Value *cond_j = Builder.CreateICmpSLT(j_val, N, "cond_j");
+    Builder.CreateCondBr(cond_j, loop_j_body, loop_i_inc);
+
+    // j loop body
+    Builder.SetInsertPoint(loop_j_body);
+    // Initialize k = 0
+    Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(Context), 0), k);
+    Builder.CreateBr(loop_k_cond);
+
+    // k loop condition
+    Builder.SetInsertPoint(loop_k_cond);
+    Value *k_val = Builder.CreateLoad(Type::getInt32Ty(Context), k, "k_val");
+    Value *cond_k = Builder.CreateICmpSLT(k_val, N, "cond_k");
+    Builder.CreateCondBr(cond_k, loop_k_body, loop_j_inc);
+
+    // k loop body - actual computation
+    Builder.SetInsertPoint(loop_k_body);
+    // Load A[i][k]
+    Value *A_i = Builder.CreateLoad(PointerType::get(Type::getInt32Ty(Context), 0), 
+                                  Builder.CreateGEP(PointerType::get(Type::getInt32Ty(Context), 0), A, {i_val}), "A_i");
+    Value *A_ik = Builder.CreateLoad(Type::getInt32Ty(Context), 
+                                   Builder.CreateGEP(Type::getInt32Ty(Context), A_i, {k_val}), "A_ik");
+    
+    // Load B[k][j]
+    Value *B_k = Builder.CreateLoad(PointerType::get(Type::getInt32Ty(Context), 0), 
+                                  Builder.CreateGEP(PointerType::get(Type::getInt32Ty(Context), 0), B, {k_val}), "B_k");
+    Value *B_kj = Builder.CreateLoad(Type::getInt32Ty(Context), 
+                                   Builder.CreateGEP(Type::getInt32Ty(Context), B_k, {j_val}), "B_kj");
+    
+    // Load C[i][j]
+    Value *C_i = Builder.CreateLoad(PointerType::get(Type::getInt32Ty(Context), 0), 
+                                  Builder.CreateGEP(PointerType::get(Type::getInt32Ty(Context), 0), C, {i_val}), "C_i");
+    Value *C_ij = Builder.CreateLoad(Type::getInt32Ty(Context), 
+                                   Builder.CreateGEP(Type::getInt32Ty(Context), C_i, {j_val}), "C_ij");
+    
+    // Multiply and add
+    Value *MulRes = Builder.CreateMul(A_ik, B_kj, "mul_res");
+    Value *NewC = Builder.CreateAdd(C_ij, MulRes, "new_c");
+    
+    // Store back to C[i][j]
+    Builder.CreateStore(NewC, Builder.CreateGEP(Type::getInt32Ty(Context), C_i, {j_val}));
+    
+    // k increment
+    Value *next_k = Builder.CreateAdd(k_val, ConstantInt::get(Type::getInt32Ty(Context), 1), "next_k");
+    Builder.CreateStore(next_k, k);
+    Builder.CreateBr(loop_k_cond);
+
+    // j increment
+    Builder.SetInsertPoint(loop_j_inc);
+    Value *next_j = Builder.CreateAdd(j_val, ConstantInt::get(Type::getInt32Ty(Context), 1), "next_j");
+    Builder.CreateStore(next_j, j);
+    Builder.CreateBr(loop_j_cond);
+
+    // i increment
+    Builder.SetInsertPoint(loop_i_inc);
+    Value *next_i = Builder.CreateAdd(i_val, ConstantInt::get(Type::getInt32Ty(Context), 1), "next_i");
+    Builder.CreateStore(next_i, i);
+    Builder.CreateBr(loop_i_cond);
+
+    // Exit block
+    Builder.SetInsertPoint(exitBlock);
     Builder.CreateRetVoid();
 
-    // Verify and Print IR
-    if (verifyFunction(*matmulFunc)) {
+    // Verify function
+    if (verifyFunction(*matmulFunc, &errs())) {
         std::cerr << "Error: Function verification failed!\n";
         return 1;
     }
+
+    // Memory Mapping
+    std::cout << "Mapping memory for matrix multiplication..." << std::endl;
+    mapMemory();
 
     ModuleOb->print(outs(), nullptr);
     return 0;

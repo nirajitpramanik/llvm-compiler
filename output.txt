@@ -1,0 +1,71 @@
+D:\VIT\Winter Semester - Year 3\Compiler Design\Compil-a-thon\gpt-1\build\Release>pim_compiler.exe
+Mapping memory for matrix multiplication...
+Mapping memory for matrix multiplication...
+; ModuleID = 'PIM_Compiler'
+source_filename = "PIM_Compiler"
+
+define void @matmul(ptr %0, ptr %1, ptr %2, i32 %3) {
+entry:
+  %i = alloca i32, align 4
+  %j = alloca i32, align 4
+  %k = alloca i32, align 4
+  store i32 0, ptr %i, align 4
+  br label %loop_i_cond
+
+loop_i_cond:                                      ; preds = %loop_i_inc, %entry
+  %i_val = load i32, ptr %i, align 4
+  %cond_i = icmp slt i32 %i_val, %3
+  br i1 %cond_i, label %loop_i_body, label %exit
+
+loop_i_body:                                      ; preds = %loop_i_cond
+  store i32 0, ptr %j, align 4
+  br label %loop_j_cond
+
+loop_j_cond:                                      ; preds = %loop_j_inc, %loop_i_body
+  %j_val = load i32, ptr %j, align 4
+  %cond_j = icmp slt i32 %j_val, %3
+  br i1 %cond_j, label %loop_j_body, label %loop_i_inc
+
+loop_j_body:                                      ; preds = %loop_j_cond
+  store i32 0, ptr %k, align 4
+  br label %loop_k_cond
+
+loop_k_cond:                                      ; preds = %loop_k_body, %loop_j_body
+  %k_val = load i32, ptr %k, align 4
+  %cond_k = icmp slt i32 %k_val, %3
+  br i1 %cond_k, label %loop_k_body, label %loop_j_inc
+
+loop_k_body:                                      ; preds = %loop_k_cond
+  %4 = getelementptr ptr, ptr %0, i32 %i_val
+  %A_i = load ptr, ptr %4, align 8
+  %5 = getelementptr i32, ptr %A_i, i32 %k_val
+  %A_ik = load i32, ptr %5, align 4
+  %6 = getelementptr ptr, ptr %1, i32 %k_val
+  %B_k = load ptr, ptr %6, align 8
+  %7 = getelementptr i32, ptr %B_k, i32 %j_val
+  %B_kj = load i32, ptr %7, align 4
+  %8 = getelementptr ptr, ptr %2, i32 %i_val
+  %C_i = load ptr, ptr %8, align 8
+  %9 = getelementptr i32, ptr %C_i, i32 %j_val
+  %C_ij = load i32, ptr %9, align 4
+  %mul_res = mul i32 %A_ik, %B_kj
+  %new_c = add i32 %C_ij, %mul_res
+  %10 = getelementptr i32, ptr %C_i, i32 %j_val
+  store i32 %new_c, ptr %10, align 4
+  %next_k = add i32 %k_val, 1
+  store i32 %next_k, ptr %k, align 4
+  br label %loop_k_cond
+
+loop_j_inc:                                       ; preds = %loop_k_cond
+  %next_j = add i32 %j_val, 1
+  store i32 %next_j, ptr %j, align 4
+  br label %loop_j_cond
+
+loop_i_inc:                                       ; preds = %loop_j_cond
+  %next_i = add i32 %i_val, 1
+  store i32 %next_i, ptr %i, align 4
+  br label %loop_i_cond
+
+exit:                                             ; preds = %loop_i_cond
+  ret void
+}
