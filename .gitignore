@@ -1,0 +1,11 @@
+# Ignore build directory
+/build/
+/*.o
+/*.obj
+/*.exe
+/*.dll
+/*.lib
+/*.log
+/*.ninja
+/*.vcxproj
+/*.cmake
